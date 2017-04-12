@@ -1,68 +1,51 @@
 #include "sieve_of_eratosthenes.h"
 using namespace std;
 
-void SieveOfEratosthenes(int prime, char* numbers){
-
+void SieveOfEratosthenes(int prime){
 	SYSTEMTIME Time1, Time2;
 	char st[100];
-    long long k = 2;
-
 	long long realNumber = pow(2, prime);
+	long long sqrtRealNumber = sqrt(realNumber);
+	vector<bool> numbers(realNumber-1, true);
 
-    Time1 = clock();
+  Time1 = clock();
 
-    /*fill the array with natural numbers*/
-    for (long long i=0;i<realNumber;i++){
-        numbers[i]=false;
-    }
+  /*sieve the non-primes*/
+	for (long long i = 2; i <= sqrtRealNumber; i++) {
+		if (numbers[i]) {
+			for (long long j = i * i; j <= realNumber; j = j + i)
+				numbers[j] = false;
+		}
+	}
 
-    /*sieve the non-primes*/
-
-    while (k * k <= realNumber) {
-        for (long long j=k*k;j<realNumber;j = j + k)
-            numbers[j]=true;
-
-        for (long long j=k+1;j <= realNumber; j++) {
-            if (numbers[j] == false) {
-                k = j;
-                j = realNumber;
-            }
-        }
-    }
+	/*
+	for (int k = 2;k < realNumber; k++)
+      if (numbers[k])
+          printf("%d\n", k);
+	*/
 
 	Time2 = clock();
 	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
 	cout << st;
 }
-
-void SieveOfEratosthenesOpenMP(int prime, int nthreads, char* numbers) {
-	long long realNumber = pow(2, prime);
-    
-    long long k = 2;
+// instead of i*i <= lastNumber we write i <= lastNumberSquareRoot to help OpenMP
+void SieveOfEratosthenesOpenMP(int prime, int nthreads) {
+		long long realNumber = pow(2, prime);
+    long long i,j;
+		long long sqrtRealNumber = sqrt(realNumber);
     double inicialTime = omp_get_wtime();
     double finalTime;
-
-    /*fill the array with natural numbers*/
-    #pragma omp target teams distribute parallel for map(from:numbers[0:realNumber])
-    for (long long i=0;i<realNumber;i++){
-        numbers[i]=false;
-    }
+		vector<bool> numbers(realNumber-1, true);
 
     /*sieve the non-primes*/
+    #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+		for (i = 2; i <= sqrtRealNumber; i++) {
+			if (numbers[i]) {
+				for (j = i * 2; j <= realNumber; j = j + i)
+					numbers[j] = false;
+			}
+		}
 
-    while (k * k <= realNumber) {
-        #pragma omp parallel for private(j) num_threads(nthreads)
-        for (long long j=k*k;j<realNumber;j = j + k)
-            numbers[j]=true;
-
-        for (long long j=k+1;j <= realNumber; j++) {
-            if (numbers[j] == false) {
-                k = j;
-                j = realNumber;
-            }
-        }
-    }
-    
     finalTime = omp_get_wtime();
     cout << "Time: " << finalTime - inicialTime << " seconds\n";
 }

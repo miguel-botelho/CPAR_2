@@ -1,4 +1,5 @@
 #include <papi.h>
+#include <limits.h>
 #include "sieve_of_eratosthenes.h"
 using namespace std;
 
@@ -24,15 +25,13 @@ void init_papi() {
 
 int main (int argc, char *argv[])
 {
-
 	int prime, realPrime, nthreads;
 	int op;
-	char* result;
+	bool* result;
 
 	int EventSet = PAPI_NULL;
-  	long long values[2];
-  	int ret;
-
+  long long values[2];
+  int ret;
 
 	ret = PAPI_library_init( PAPI_VER_CURRENT );
 	if ( ret != PAPI_VER_CURRENT )
@@ -40,7 +39,7 @@ int main (int argc, char *argv[])
 
 
 	ret = PAPI_create_eventset(&EventSet);
-		if (ret != PAPI_OK) cout << "ERRO: create eventset" << endl;
+	if (ret != PAPI_OK) cout << "ERRO: create eventset" << endl;
 
 
 	ret = PAPI_add_event(EventSet,PAPI_L1_DCM );
@@ -64,12 +63,12 @@ int main (int argc, char *argv[])
 			break;
 		cout << "Prime numbers until: ";
    		cin >> prime;
-		realPrime = pow(2, prime);
-		result = (char*)malloc(realPrime * sizeof(char));
-		if (result == NULL) {
+
+		/*if (result == NULL) {
 			cout << "Error allocating memory\n";
 			exit(-1);
 		}
+    */
 		//vector<int> result2 (;
 		// Start counting
 		ret = PAPI_start(EventSet);
@@ -77,12 +76,12 @@ int main (int argc, char *argv[])
 
 		switch (op){
 			case 1:
-				SieveOfEratosthenes(prime, result);
+				SieveOfEratosthenes(prime);
 				break;
 			case 2:
 				cout << "Number of threads: ";
 				cin >> nthreads;
-				SieveOfEratosthenesOpenMP(prime, nthreads, result);
+				SieveOfEratosthenesOpenMP(prime, nthreads);
 				break;
 			case 3:
 				//result = SieveOfEratosthenesMPI(prime);
@@ -92,11 +91,16 @@ int main (int argc, char *argv[])
 				break;
 		}
 
-  		ret = PAPI_stop(EventSet, values);
-  		if (ret != PAPI_OK) cout << "ERRO: Stop PAPI" << endl;
-  		printf("L1 DCM: %lld \n",values[0]);
-  		printf("L2 DCM: %lld \n",values[1]);
-		free(result);
+		ret = PAPI_stop(EventSet, values);
+		if (ret != PAPI_OK) cout << "ERRO: Stop PAPI" << endl;
+		printf("L1 DCM: %lld \n",values[0]);
+		printf("L2 DCM: %lld \n",values[1]);
+
+    // start trolhice
+    //std::vector<bool>().swap(numbers);
+    //numbers.clear();
+    //numbers.shrink_to_fit();
+    // finish trolhice
 
 		// fazer print dos primos
 		/*
@@ -104,7 +108,7 @@ int main (int argc, char *argv[])
         	if (result[i]!=-1)
 				printf("%lld  ; ",result[i]);
 		*/
-		
+
 		ret = PAPI_reset( EventSet );
 		if ( ret != PAPI_OK )
 			std::cout << "FAIL reset" << endl;
