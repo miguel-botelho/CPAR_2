@@ -12,8 +12,8 @@
 
 #define SYSTEMTIME clock_t
 
-long long* SieveOfEratosthenes(int prime);
-long long* SieveOfEratosthenesOpenMP(int prime, int nthreads);
+void SieveOfEratosthenes(int prime, char* numbers);
+void SieveOfEratosthenesOpenMP(int prime, int nthreads, char* numbers);
 long long* SieveOfEratosthenesMPI(int prime);
 long long* SieveOfEratosthenesMPIShared(int prime);
 

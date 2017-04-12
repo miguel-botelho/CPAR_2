@@ -1,64 +1,70 @@
 #include "sieve_of_eratosthenes.h"
 using namespace std;
 
-long long* SieveOfEratosthenes(int prime){
+void SieveOfEratosthenes(int prime, char* numbers){
 
 	SYSTEMTIME Time1, Time2;
 	char st[100];
+    long long k = 2;
 
 	long long realNumber = pow(2, prime);
-    long long *numbers = (long long *)malloc(realNumber * sizeof(long long));
 
     Time1 = clock();
 
     /*fill the array with natural numbers*/
     for (long long i=0;i<realNumber;i++){
-        numbers[i]=i+2;
+        numbers[i]=false;
     }
 
     /*sieve the non-primes*/
-    for (long long i=0;i<realNumber;i++){
-        if (numbers[i]!=-1){
-            for (long long j=2*numbers[i]-2;j<realNumber;j+=numbers[i])
-                numbers[j]=-1;
+
+    while (k * k <= realNumber) {
+        for (long long j=k*k;j<realNumber;j = j + k)
+            numbers[j]=true;
+
+        for (long long j=k+1;j <= realNumber; j++) {
+            if (numbers[j] == false) {
+                k = j;
+                j = realNumber;
+            }
         }
     }
 
 	Time2 = clock();
 	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
 	cout << st;
-
-	return numbers;
 }
 
-long long* SieveOfEratosthenesOpenMP(int prime, int nthreads) {
+void SieveOfEratosthenesOpenMP(int prime, int nthreads, char* numbers) {
 	long long realNumber = pow(2, prime);
-    long long *numbers = (long long *)malloc(realNumber * sizeof(long long));
     
-    long long i,j;
+    long long k = 2;
     double inicialTime = omp_get_wtime();
     double finalTime;
 
     /*fill the array with natural numbers*/
-    for (i=0;i<realNumber;i++){
-        numbers[i]=i+2;
+    #pragma omp target teams distribute parallel for map(from:numbers[0:realNumber])
+    for (long long i=0;i<realNumber;i++){
+        numbers[i]=false;
     }
 
-    i = 0;
-
     /*sieve the non-primes*/
-    #pragma omp parallel for private(i,j) num_threads(nthreads)
-    for (i=0;i<realNumber;i++){
-        if (numbers[i]!=-1){
-            for (long long j=2*numbers[i]-2;j<realNumber;j+=numbers[i])
-                numbers[j]=-1;
+
+    while (k * k <= realNumber) {
+        #pragma omp parallel for private(j) num_threads(nthreads)
+        for (long long j=k*k;j<realNumber;j = j + k)
+            numbers[j]=true;
+
+        for (long long j=k+1;j <= realNumber; j++) {
+            if (numbers[j] == false) {
+                k = j;
+                j = realNumber;
+            }
         }
     }
     
     finalTime = omp_get_wtime();
     cout << "Time: " << finalTime - inicialTime << " seconds\n";
-
-	return numbers;
 }
 
 long long* SieveOfEratosthenesMPI(int prime) {

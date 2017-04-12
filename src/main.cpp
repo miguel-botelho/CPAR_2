@@ -27,7 +27,7 @@ int main (int argc, char *argv[])
 
 	int prime, realPrime, nthreads;
 	int op;
-	long long* result;
+	char* result;
 
 	int EventSet = PAPI_NULL;
   	long long values[2];
@@ -62,28 +62,33 @@ int main (int argc, char *argv[])
 		cin >> op;
 		if (op == 0)
 			break;
-		printf("Prime numbers until: ");
+		cout << "Prime numbers until: ";
    		cin >> prime;
 		realPrime = pow(2, prime);
-
+		result = (char*)malloc(realPrime * sizeof(char));
+		if (result == NULL) {
+			cout << "Error allocating memory\n";
+			exit(-1);
+		}
+		//vector<int> result2 (;
 		// Start counting
 		ret = PAPI_start(EventSet);
 		if (ret != PAPI_OK) cout << "ERRO: Start PAPI" << endl;
 
 		switch (op){
 			case 1:
-				result = SieveOfEratosthenes(prime);
+				SieveOfEratosthenes(prime, result);
 				break;
 			case 2:
 				cout << "Number of threads: ";
 				cin >> nthreads;
-				result = SieveOfEratosthenesOpenMP(prime, nthreads);
+				SieveOfEratosthenesOpenMP(prime, nthreads, result);
 				break;
 			case 3:
-				result = SieveOfEratosthenesMPI(prime);
+				//result = SieveOfEratosthenesMPI(prime);
 				break;
 			case 4:
-				result = SieveOfEratosthenesMPIShared(prime);
+				//result = SieveOfEratosthenesMPIShared(prime);
 				break;
 		}
 
@@ -91,6 +96,7 @@ int main (int argc, char *argv[])
   		if (ret != PAPI_OK) cout << "ERRO: Stop PAPI" << endl;
   		printf("L1 DCM: %lld \n",values[0]);
   		printf("L2 DCM: %lld \n",values[1]);
+		free(result);
 
 		// fazer print dos primos
 		/*
@@ -116,7 +122,4 @@ int main (int argc, char *argv[])
 		ret = PAPI_destroy_eventset( &EventSet );
 		if ( ret != PAPI_OK )
 			std::cout << "FAIL destroy" << endl;
-
-		free(result);
-
 }
