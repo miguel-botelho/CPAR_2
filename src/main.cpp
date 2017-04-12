@@ -25,7 +25,7 @@ void init_papi() {
 int main (int argc, char *argv[])
 {
 
-	int prime, realPrime;
+	int prime, realPrime, nthreads;
 	int op;
 	long long* result;
 
@@ -75,7 +75,9 @@ int main (int argc, char *argv[])
 				result = SieveOfEratosthenes(prime);
 				break;
 			case 2:
-				result = SieveOfEratosthenesOpenMP(prime);
+				cout << "Number of threads: ";
+				cin >> nthreads;
+				result = SieveOfEratosthenesOpenMP(prime, nthreads);
 				break;
 			case 3:
 				result = SieveOfEratosthenesMPI(prime);
