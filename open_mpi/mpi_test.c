@@ -1,29 +1,79 @@
-#include <mpi.h>
+/*
+ * Copyright (c) 2004-2006 The Trustees of Indiana University and Indiana
+ *                         University Research and Technology
+ *                         Corporation.  All rights reserved.
+ * Copyright (c) 2006      Cisco Systems, Inc.  All rights reserved.
+ *
+ * Simple ring test program in C.
+ */
+
 #include <stdio.h>
+#include "mpi.h"
 
-int main(int argc, char** argv) {
-  // Initialize the MPI environment. The two arguments to MPI Init are not
-  // currently used by MPI implementations, but are there in case future
-  // implementations might need the arguments.
-  MPI_Init(NULL, NULL);
+int main(int argc, char *argv[])
+{
+    int rank, size, next, prev, message, tag = 201;
 
-  // Get the number of processes
-  int world_size;
-  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    /* Start up MPI */
 
-  // Get the rank of the process
-  int world_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  // Get the name of the processor
-  char processor_name[MPI_MAX_PROCESSOR_NAME];
-  int name_len;
-  MPI_Get_processor_name(processor_name, &name_len);
+    /* Calculate the rank of the next process in the ring.  Use the
+       modulus operator so that the last process "wraps around" to
+       rank zero. */
 
-  // Print off a hello world message
-  printf("Hello world from processor %s, rank %d out of %d processors\n",
-         processor_name, world_rank, world_size);
+    next = (rank + 1) % size;
+    prev = (rank + size - 1) % size;
 
-  // Finalize the MPI environment. No more MPI calls can be made after this
-  MPI_Finalize();
+    /* If we are the "master" process (i.e., MPI_COMM_WORLD rank 0),
+       put the number of times to go around the ring in the
+       message. */
+    printf("PREV: %d NEXT: %d \n",prev,next);
+    if (0 == rank) {
+        message = 10;
+
+        printf("Process 0 sending %d to %d, tag %d (%d processes in ring)\n",
+               message, next, tag, size);
+        MPI_Send(&message, 1, MPI_INT, next, tag, MPI_COMM_WORLD);
+        printf("Process 0 sent to %d\n", next);
+    }
+
+    /* Pass the message around the ring.  The exit mechanism works as
+       follows: the message (a positive integer) is passed around the
+       ring.  Each time it passes rank 0, it is decremented.  When
+       each processes receives a message containing a 0 value, it
+       passes the message on to the next process and then quits.  By
+       passing the 0 message first, every process gets the 0 message
+       and can quit normally. */
+
+    while (1) {
+        MPI_Recv(&message, 1, MPI_INT, prev, tag, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+
+        if (0 == rank) {
+            --message;
+            printf("Process 0 decremented value: %d\n", message);
+        }
+
+        MPI_Send(&message, 1, MPI_INT, next, tag, MPI_COMM_WORLD);
+        if (0 == message) {
+            printf("Process %d exiting\n", rank);
+            break;
+        }
+    }
+
+    /* The last process does one extra send to process 0, which needs
+       to be received before the program can exit */
+
+    if (0 == rank) {
+        MPI_Recv(&message, 1, MPI_INT, prev, tag, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+    }
+
+    /* All done */
+
+    MPI_Finalize();
+    return 0;
 }
