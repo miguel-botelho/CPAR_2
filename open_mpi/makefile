@@ -1,10 +1,9 @@
-EXECS=mpi_test
-MPICC?=mpicc
+CFLAGS=-std=c++11
 
-call: ${EXECS}
+all: prog_cpp
 
-mpi_test: mpi_test.c
-	${MPICC} -o mpi_test mpi_test.c
+prog_cpp:
+	mpiCC mpi_test.cpp -o mpi_test
 	scp mpi_test up201304828@192.168.108.58:
-
-clean:rm ${EXECS}
+clean:
+	\rm *.o *.class
