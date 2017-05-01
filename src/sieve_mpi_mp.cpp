@@ -3,6 +3,7 @@
 #include "mpi.h"
 #include <time.h>
 #include <math.h>
+#include <papi.h>
 
 #define BLOCK_LOW(i,n,p) ((i)*(n)/(p))
 #define BLOCK_HIGH(i,n,p) (BLOCK_LOW((i)+1,n,p)-1)
@@ -12,10 +13,55 @@
 
 using namespace std;
 int totalPrimes(int size,bool* primes);
+void handle_error (int retval)
+{
+  printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
+  exit(1);
+}
+
+void init_papi() {
+  int retval = PAPI_library_init(PAPI_VER_CURRENT);
+  if (retval != PAPI_VER_CURRENT && retval < 0) {
+    printf("PAPI library version mismatch!\n");
+    exit(1);
+  }
+  if (retval < 0) handle_error(retval);
+
+  std::cout << "PAPI Version Number: MAJOR: " << PAPI_VERSION_MAJOR(retval)
+            << " MINOR: " << PAPI_VERSION_MINOR(retval)
+            << " REVISION: " << PAPI_VERSION_REVISION(retval) << "\n";
+}
 
 int main(int argc, char *argv[])
 {
     int rank,size,len,root=0;
+
+    /* Start PAPI */
+    bool* result;
+
+  	int EventSet = PAPI_NULL;
+    long long values[2];
+    int ret;
+
+  	ret = PAPI_library_init( PAPI_VER_CURRENT );
+  	if ( ret != PAPI_VER_CURRENT )
+  		std::cout << "FAIL" << endl;
+
+
+  	ret = PAPI_create_eventset(&EventSet);
+  	if (ret != PAPI_OK) cout << "ERRO: create eventset" << endl;
+
+
+  	ret = PAPI_add_event(EventSet,PAPI_L1_DCM );
+  	if (ret != PAPI_OK) cout << "ERRO: PAPI_L1_DCM" << endl;
+
+
+  	ret = PAPI_add_event(EventSet,PAPI_L2_DCM);
+  	if (ret != PAPI_OK) cout << "ERRO: PAPI_L2_DCM" << endl;
+
+    ret = PAPI_start(EventSet);
+		if (ret != PAPI_OK) cout << "ERRO: Start PAPI" << endl;
+
 
     /* Start up MPI */
 
@@ -29,7 +75,8 @@ int main(int argc, char *argv[])
 
 
     long long exponent = atol(argv[1]);
-	  if (exponent < 1) {
+    int num_threads = atoi(argv[2]);
+	  if (exponent < 1 || num_threads <= 0) {
 		    printf("Invalid input: 2^N must equal or superior to 1\n");
 		    return 1;
 	  }
@@ -54,16 +101,9 @@ int main(int argc, char *argv[])
 	long long j;
   MPI_Get_processor_name(hostname, &len);
 
-
-  cout << "PROCESSOR: "<<hostname<<"Process "<< rank << " of "<< size<<" block_low--> "<<block_low<<" block_high--> "<<block_high<<endl;
-
-  //cout << "PRIMES-> "<< totalPrimes((int)block_size,primes)<<endl;
-
-
   while (k*k <= n) {
 
   		if (k*k < block_low) {
-  			// Antes
   			if (block_low % k == 0)
   				j = block_low;
   			else
@@ -73,15 +113,12 @@ int main(int argc, char *argv[])
   			j = k*k;
   		}
 
-  		// Mark all multiples of k between k*k and n:
+      #pragma omp parallel for num_threads(num_threads)
   		for (long long i = j; i <= block_high; i += k) {
   			primes[i - block_low] = false;
   		}
 
-
-  		// Set k as the smallest urmarked number > k:
   		if (rank == root) {
-
   			for(long long i = k + 1; i < block_high; i++) {
   				if (primes[i - block_low]) {
   					k = i;
@@ -103,7 +140,28 @@ int main(int argc, char *argv[])
   		clock_gettime(CLOCK_MONOTONIC, &finish);
   		time_elapsed = (finish.tv_sec - start.tv_sec);
   		time_elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
-  		cout << "2," << exponent << "," << size << ",0," << total_primes << "," << time_elapsed << endl;
+  		cout << "2^" << exponent << " time_elapsed--> " << time_elapsed << endl;
+
+      ret = PAPI_stop(EventSet, values);
+  		if (ret != PAPI_OK) cout << "ERRO: Stop PAPI" << endl;
+  		printf("L1 DCM: %lld \n",values[0]);
+  		printf("L2 DCM: %lld \n",values[1]);
+  		ret = PAPI_reset( EventSet );
+  		if ( ret != PAPI_OK )
+  			std::cout << "FAIL reset" << endl;
+
+      ret = PAPI_remove_event( EventSet, PAPI_L1_DCM );
+    	if ( ret != PAPI_OK )
+    		std::cout << "FAIL remove event" << endl;
+
+    	ret = PAPI_remove_event( EventSet, PAPI_L2_DCM );
+    	if ( ret != PAPI_OK )
+    		std::cout << "FAIL remove event" << endl;
+
+    	ret = PAPI_destroy_eventset( &EventSet );
+    	if ( ret != PAPI_OK )
+    		std::cout << "FAIL destroy" << endl;
+
   	}
 
   delete [] primes;
