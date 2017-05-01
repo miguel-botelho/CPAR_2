@@ -18,12 +18,6 @@ void SieveOfEratosthenes(int prime){
 		}
 	}
 
-	/*
-	for (int k = 2;k < realNumber; k++)
-      if (numbers[k])
-          printf("%d\n", k);
-	*/
-
 	Time2 = clock();
 	sprintf(st, "Time: %3.3f seconds\n", (double)(Time2 - Time1) / CLOCKS_PER_SEC);
 	cout << st;
